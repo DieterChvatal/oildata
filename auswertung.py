@@ -26,9 +26,11 @@ def summary(filename):
     # xdf = pd.DataFrame(data, index=idx, columns=cols)[fields]
 
     xdf = pd.read_excel(filename)[fields]
+    logging.info(f"{filename} read into xdf, restricted to [fields] -> next applymap(corr)")
     all_lines = xdf.shape[0]
 
     corr_xdf = xdf.applymap(helpers.corr) # correct the contents
+    logging.info(f"xdf.applymap(helpers.corr) completed -> next start collecting results")
     
     result = {
     'Zeilen': [],
@@ -38,25 +40,34 @@ def summary(filename):
     'Mittlere Öl Stunden pro gültigem Motor': [],
     }
     # alle Öle im file ermitteln
-    columns = list(corr_xdf['Oil/Fluid Long Name'].unique())
-    for oil_name in columns:
-        new_xdf = corr_xdf[corr_xdf['Oil/Fluid Long Name'] == oil_name] # nur die Zeilen mit 'oil_name' ausfiltern
+    corr_xdf['Oil_Unique_Name'] = corr_xdf['Oil/Fluid Long Name'].apply(lambda x: str(x).upper().replace(' ',''))
+    uniques = list(corr_xdf['Oil_Unique_Name'].unique())
+    columns = []
+    for oil_name in uniques:
+        #new_xdf = corr_xdf[corr_xdf['Oil/Fluid Long Name'] == oil_name] # nur die Zeilen mit 'oil_name' ausfiltern
+        new_xdf = corr_xdf[corr_xdf['Oil_Unique_Name'] == oil_name] # nur die Zeilen mit 'oil_name' ausfiltern
+        columns.append(new_xdf['Oil/Fluid Long Name'].iloc(0)[0])
         uniquecodes = new_xdf['Unique Code'].unique() # Alle Unique Codes der Motoren auslesen - nur unterschiedliche codes kommen in die Liste
         No_of_Engines = len(uniquecodes)
         result['Zeilen'].append(new_xdf.shape[0])
         result['Eindeutige Motoren'].append(No_of_Engines)
         if new_xdf.shape[0] == 0: #no enties found
+            logging.info(f"short before raising Value Error: kein Öl mit Namen '{oil_name}' in '{os.path.basename(filename)}' gefunden.")
             raise ValueError(f"kein Öl mit Namen '{oil_name}' in '{os.path.basename(filename)}' gefunden.")
         oil_sum = 0
         count_sum = 0
         for u in uniquecodes:
-            df = new_xdf[new_xdf['Unique Code'] == u].sort_values(by = ['Unit Hours'],ascending=[True])
+            odf = new_xdf[new_xdf['Unique Code'] == u]
+            #print(oil_name)
+            #print(odf)
+            df = odf.sort_values(by = ['Unit Hours'],ascending=[True])
             try: #try to calculate oil running hours
                 oil_age = df['Unit Hours'].max() - df['Unit Hours'].min() + df.iloc[0]['Oil/Fluid Hours']
                 if oil_age == oil_age: #this is a trick to check for NAN
                     oil_sum += oil_age
                     count_sum += 1
             except Exception:
+                logging.info(f"{oil_name}, line with unique code {u}, oil age {oil_age} could not be evaluated, skipping line")
                 pass # do nothing on entry rows with missing parameters.
         result['gültige Motoren'].append(count_sum)
         result['Kumulierte Öl Stunden'].append(int(f"{oil_sum:0.0f}"))
@@ -69,9 +80,8 @@ def summary(filename):
     logging.info(f"Exporting Zusammenfassung to {config.zoutfile}.")
     #rdf.to_excel(config.zoutfile)
     print(rdf)
-    print('save to excel sheet')
     t1 = time.time()
-
+    logging.info(f"Result will now be saved in sheet 'Zusammenfassung' in workbook {filename}")
     # add summary sheets
     wb = load_workbook(filename)
     wb.create_sheet('Zusammenfassung')
@@ -81,50 +91,13 @@ def summary(filename):
         ws.append(r)
     wb.save(filename)
     wb.close()
-
     t2 = time.time()
-    print(f"fertig, Dauer Einlesen ...{(t1-t0):0.2f} Dauer Speichern ...{(t2-t1):0.2f} Dauer gesamt ...{(t2-t0):0.2f}")
+
+    logging.info(f"Results saved, Dauer Einlesen ...{(t1-t0):0.2f} Dauer Speichern ...{(t2-t1):0.2f} Dauer gesamt ...{(t2-t0):0.2f}")
+    #print(f"fertig, Dauer Einlesen ...{(t1-t0):0.2f} Dauer Speichern ...{(t2-t1):0.2f} Dauer gesamt ...{(t2-t0):0.2f}")
     if sys.platform == 'win32':
+        logging.info(f"Running on Windows, starting Ecxel {filename}")
         os.startfile(filename)
     else:
-        print(rdf)
-
-# def summary2(filename, oil_name):
-#     result = {
-#         'Datum': pd.Timestamp.now(),
-#         'Datei':os.path.basename(filename),
-#         'Öl':oil_name,
-#         }
-#     fields = ['Unique Code','General Description','Oil/Fluid Long Name','Unit Hours','Oil/Fluid Hours'] # auf die benötigten Felder beschränken
-#     xdf = pd.read_excel(filename)[fields]
-#     new_xdf = xdf.applymap(helpers.corr) # correct the contents
-#     new_xdf = new_xdf[new_xdf['Oil/Fluid Long Name'] == oil_name] # nur die Zeilen mit 'oil_name' ausfiltern
-#     uniquecodes = new_xdf['Unique Code'].unique() # Alle Unique Codes der Motoren auslesen - nur unterschiedliche codes kommen in die Liste
-#     No_of_Engines = len(uniquecodes)
-#     result.update({
-#         'Zeilen': new_xdf.shape[0],
-#         'Eindeutige Motoren': No_of_Engines
-#     })
-#     if new_xdf.shape[0] == 0: #no enties found
-#         raise ValueError(f"kein Öl mit Namen '{oil_name}' in '{os.path.basename(filename)}' gefunden.")
-#     oil_sum = 0
-#     count_sum = 0
-#     for u in uniquecodes:
-#         df = new_xdf[new_xdf['Unique Code'] == u].sort_values(by = ['Unit Hours'],ascending=[True])
-#         try: #try to calculate oil running hours
-#             oil_age = df['Unit Hours'].max() - df['Unit Hours'].min() + df.iloc[0]['Oil/Fluid Hours']
-#             if oil_age == oil_age: #this is a trick to check for NAN
-#                 oil_sum += oil_age
-#                 count_sum += 1
-#         except Exception:
-#             pass # do nothing on entry rows with missing parameters.
-#     result.update({
-#         'gültige Motoren': count_sum,
-#         'Kumulierte Öl Stunden': int(f"{oil_sum:0.0f}"),
-#         'Mittlere Öl Stunden pro gültigem Motor': int(f"{oil_sum / (count_sum or 1):0.0f}")
-#     })
-#     rdf = pd.DataFrame.from_dict(result, orient='index')
-#     logging.info(f"Exporting Zusammenfassung to {config.zoutfile}.")
-#     rdf.to_excel(config.zoutfile, header=False)
-#     print(rdf)
-#     #os.startfile(config.zoutfile)
+        logging.info(f"not Running on Windows.")
+        logging.info(rdf)

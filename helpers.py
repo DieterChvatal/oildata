@@ -10,7 +10,7 @@ import csv
 # regular Expressions for the corr function.
 date_pattern = "^((\d{2}[-,/,\.]){2}\d{2,4}\s(\d{2}:){1,2}\d{2})(.*)" #matches all date constructs in spectro csv
 date_pat = re.compile(date_pattern)
-num_pattern = "^[<* ]{0,2}([+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)[\?\*\/]*$" #matches all number like constructs in spectro csv
+num_pattern = "^[<* ]{0,2}([+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)[\?\*\/\+]*$" #matches all number like constructs in spectro csv
 num_pat = re.compile(num_pattern)
 
 # Umwandels der Datenwerte in Zahlen, z.B. Entfernen von '<' bei '<0.1'
@@ -27,12 +27,14 @@ def corr(s):
                 return s
             except TypeError as err:
                 print(f"{s} raised {str(err)}")
+                logging.info(f"applymap corr - regex number , {s} raises {str(err)}")
                 raise
         if date_pat.match(s):
             try:
                 s = pd.to_datetime(date_pat.match(s).group(1))
                 return s
             except ValueError as err:
+                logging.info(f"applymap corr - regex date , {s} raises {str(err)}")
                 print(f"{s} raised {str(err)}")
                 raise
     return s # s has already a different type than str.  

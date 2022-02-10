@@ -7,6 +7,7 @@ import config
 import loadcsv
 import auswertung
 import logging
+import traceback
 import os
 
 elements = 3
@@ -24,7 +25,7 @@ path = os.path.dirname(config.oildata_logfile)
 if not os.path.exists(path):
     os.makedirs(path)
 
-logging.basicConfig(filename=config.oildata_logfile, level=logging.DEBUG)
+logging.basicConfig(filename=config.oildata_logfile, format='%(asctime)s %(levelname)s, %(message)s',level=logging.DEBUG)
 logging.info('oildataCSV started.')
 try:
     # create the root window
@@ -57,7 +58,7 @@ try:
             auswertung.summary(filename)
             #auswertung.summary(filename, oil.get())
         except Exception as e:
-            showinfo(title='Fehler',message=str(e))     
+            showinfo(title='Fehler',message=str(e) + str(traceback.format_tb(e.__traceback__)))     
     # Unique Engines button
     #frame = tk.Frame(root, borderwidth=2, relief=tk.SUNKEN)
     #frame.pack()

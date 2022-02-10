@@ -9,7 +9,7 @@ path = os.path.dirname(config.wrapper_logfile)
 if not os.path.exists(path):
     os.makedirs(path)
 
-logging.basicConfig(filename=config.wrapper_logfile, level=logging.DEBUG)
+logging.basicConfig(filename=config.wrapper_logfile, format='%(asctime)s %(levelname)s, %(message)s',level=logging.DEBUG)
 #logging.basicConfig(filename="C:\\Users\\chvatdi00\\Desktop\\wrapper.log", level=logging.DEBUG)
 
 try:
