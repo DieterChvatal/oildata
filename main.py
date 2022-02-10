@@ -81,4 +81,4 @@ try:
 except SystemExit as e:
     logging.info('OildataCSV exited.')
 except Exception as e:
-    logging.exception(str(e) + str(e.__traceback__))
+    logging.exception(str(e) + str(traceback.format_tb(e.__traceback__)))
